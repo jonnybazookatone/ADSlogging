@@ -1,7 +1,58 @@
 # Some const. variables
 $path_var = "/usr/bin:/usr/sbin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
-$build_packages = ['python', 'python-pip', 'python-dev', 'libpq-dev', 'libxml2-dev', 'libxslt1-dev']
+$build_packages = ['python', 'python-pip', 'python-dev', 'libpq-dev', 'libxml2-dev', 'libxslt1-dev', 'elasticsearch', 'logstash']
 $pip_requirements = "/vagrant/requirements.txt"
+
+define add_repo($repo_name, $repo_key, $repo_url){
+
+  exec {"get_key_${repo_name}":
+    command => "wget -q ${repo_key} -O /tmp/${repo_name}",
+    path => $path_var,
+    logoutput => true,
+    creates => "/tmp/${repo_name}"
+  }
+
+  exec {"add_key_${repo_name}":
+    command => "apt-key add /tmp/${repo_name}",
+    path => $path_var,
+    logoutput => true,
+    require => Exec["get_key_${repo_name}"],
+  }
+
+  exec {"add_repo_${repo_name}":
+    command => "add-apt-repository 'deb $repo_url stable main'",
+    path => $path_var,
+    logoutput => true,
+    require => Exec["add_key_${repo_name}"],
+  }
+
+  Exec["get_key_${repo_name}"] -> Exec["add_key_${repo_name}"] -> Exec["add_repo_${repo_name}"]
+
+}
+
+
+#file { '/vagrant/kibana':
+#ensure => 'directory',
+#group => 'vagrant',
+#owner => 'vagrant',
+#}
+#exec { 'download_kibana':
+#command => '/usr/bin/curl -L https://download.elasticsearch.org/kibana/kibana/kibana-4.0.0-linux-x64.tar.gz | /bin/tar xvz -C /vagrant/kibana',
+#require => [ Package['curl'], File['/vagrant/kibana'],Class['elasticsearch'] ],
+#timeout => 1800
+#}
+
+add_repo{'logstash':
+    repo_name => "logstash",
+    repo_key => "http://packages.elasticsearch.org/GPG-KEY-elasticsearch",
+    repo_url => "http://packages.elasticsearch.org/logstash/1.4/debian",
+}
+
+add_repo{'elastic':
+    repo_name => "elasticsearch",
+    repo_key => "http://packages.elasticsearch.org/GPG-KEY-elasticsearch",
+    repo_url => "http://packages.elasticsearch.org/elasticsearch/1.4/debian",
+}
 
 # Update package list
 exec {'apt_update_1':
@@ -32,7 +83,4 @@ exec {'update_python_path':
     path => $path_var,
 }
 
-#exec {'install_logstash':
-#    command => ""
-#    }
-Exec['apt_update_1'] -> Package[$build_packages] -> Exec['pip_install_modules'] -> Exec['update_python_path']
+Add_Repo['elastic'] -> Add_Repo['logstash'] -> Exec['apt_update_1'] -> Package[$build_packages] -> Exec['pip_install_modules'] -> Exec['update_python_path']

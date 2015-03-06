@@ -1,6 +1,6 @@
 # Some const. variables
 $path_var = "/usr/bin:/usr/sbin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
-$build_packages = ['python', 'python-pip', 'python-dev', 'libpq-dev', 'libxml2-dev', 'libxslt1-dev', 'elasticsearch', 'logstash']
+$build_packages = ['python', 'python-pip', 'python-dev', 'libpq-dev', 'libxml2-dev', 'libxslt1-dev', 'elasticsearch', 'logstash', 'nginx', 'libreadline-dev', 'libncurses5-dev', 'libpcre3-dev', 'libssl-dev', 'perl', 'make']
 $pip_requirements = "/vagrant/requirements.txt"
 
 define add_repo($repo_name, $repo_key, $repo_url){
@@ -30,6 +30,18 @@ define add_repo($repo_name, $repo_key, $repo_url){
 
 }
 
+# For nginx
+# install nginx
+# make the config file, and run nginx with 'sudo nginx -c /vagrant/nginx/nginx.conf'
+# Get the lua extension
+# install the libraries, wget http://openresty.org/download/ngx_openresty-1.5.8.1.tar.gz.
+# unpack, configure, make, make install
+# put the lua authorisation file in the correct place, run nginx.https://gist.github.com/karmi/b0a9b4c111ed3023a52d#file-authorize-lua
+
+# Make SSL certs for logstash forwarder
+#sudo mkdir -p /etc/pki/tls/certs
+#sudo mkdir /etc/pki/tls/private
+#cd /etc/pki/tls; sudo openssl req -x509 -batch -nodes -days 3650 -newkey rsa:2048 -keyout private/logstash-forwarder.key -out certs/logstash-forwarder.crt
 
 #file { '/vagrant/kibana':
 #ensure => 'directory',

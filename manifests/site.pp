@@ -43,6 +43,15 @@ define add_repo($repo_name, $repo_key, $repo_url){
 #sudo mkdir /etc/pki/tls/private
 #cd /etc/pki/tls; sudo openssl req -x509 -batch -nodes -days 3650 -newkey rsa:2048 -keyout private/logstash-forwarder.key -out certs/logstash-forwarder.crt
 
+
+# logstash forwarder
+# This goes on the server that wants to SEND the logs to the SERVER
+#
+# echo 'deb http://packages.elasticsearch.org/logstashforwarder/debian stable main' | sudo tee /etc/apt/sources.list.d/logstashforwarder.list
+# wget -O - http://packages.elasticsearch.org/GPG-KEY-elasticsearch | sudo apt-key add -
+# sudo apt-get update
+# sudo apt-get install logstash-forwarder
+
 #file { '/vagrant/kibana':
 #ensure => 'directory',
 #group => 'vagrant',

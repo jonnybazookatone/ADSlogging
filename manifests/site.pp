@@ -1,7 +1,6 @@
 # Some const. variables
 $path_var = "/usr/bin:/usr/sbin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
-$build_packages = ['python', 'python-pip', 'python-dev', 'libpq-dev', 'libxml2-dev', 'libxslt1-dev', 'elasticsearch', 'logstash', 'nginx', 'libreadline-dev', 'libncurses5-dev', 'libpcre3-dev', 'libssl-dev', 'perl', 'make']
-$pip_requirements = "/vagrant/requirements.txt"
+$build_packages = ['elasticsearch', 'logstash', 'curl']
 
 define add_repo($repo_name, $repo_key, $repo_url){
 
@@ -30,38 +29,44 @@ define add_repo($repo_name, $repo_key, $repo_url){
 
 }
 
-# For nginx
-# install nginx
-# make the config file, and run nginx with 'sudo nginx -c /vagrant/nginx/nginx.conf'
-# Get the lua extension
-# install the libraries, wget http://openresty.org/download/ngx_openresty-1.5.8.1.tar.gz.
-# unpack, configure, make, make install
-# put the lua authorisation file in the correct place, run nginx.https://gist.github.com/karmi/b0a9b4c111ed3023a52d#file-authorize-lua
+file { 'move_kibana_folder':
+  ensure => 'directory',
+  recurse => true,
+  path => '/opt/kibana4',
+  source => '/vagrant/kibana-4.0.0-linux-x64',
+  mode => '0744',
+  group => 'vagrant',
+  owner => 'vagrant',
+  require => Exec['download_kibana'],
+}
 
-# Make SSL certs for logstash forwarder
-#sudo mkdir -p /etc/pki/tls/certs
-#sudo mkdir /etc/pki/tls/private
-#cd /etc/pki/tls; sudo openssl req -x509 -batch -nodes -days 3650 -newkey rsa:2048 -keyout private/logstash-forwarder.key -out certs/logstash-forwarder.crt
+exec { 'download_kibana':
+  command => 'curl -L https://download.elasticsearch.org/kibana/kibana/kibana-4.0.0-linux-x64.tar.gz | tar xvz -C /vagrant/',
+  require => [ Package[$build_packages] ],
+  path => $path_var,
+}
 
+file { 'copy_kibana_conf':
+  path => '/etc/init.d/kibana',
+  source => 'puppet:///modules/kibana/kibana.conf',
+  mode => '0744',
+  group => 'vagrant',
+  owner => 'vagrant',
+}
 
-# logstash forwarder
-# This goes on the server that wants to SEND the logs to the SERVER
-#
-# echo 'deb http://packages.elasticsearch.org/logstashforwarder/debian stable main' | sudo tee /etc/apt/sources.list.d/logstashforwarder.list
-# wget -O - http://packages.elasticsearch.org/GPG-KEY-elasticsearch | sudo apt-key add -
-# sudo apt-get update
-# sudo apt-get install logstash-forwarder
+exec { 'update_init':
+  command => 'update-rc.d kibana defaults',
+  path => $path_var,
+  require => File['copy_kibana_conf'],
+}
 
-#file { '/vagrant/kibana':
-#ensure => 'directory',
-#group => 'vagrant',
-#owner => 'vagrant',
-#}
-#exec { 'download_kibana':
-#command => '/usr/bin/curl -L https://download.elasticsearch.org/kibana/kibana/kibana-4.0.0-linux-x64.tar.gz | /bin/tar xvz -C /vagrant/kibana',
-#require => [ Package['curl'], File['/vagrant/kibana'],Class['elasticsearch'] ],
-#timeout => 1800
-#}
+file { 'copy_logstash_conf':
+  path => '/etc/logstash/conf.d/',
+  source => 'puppet:///modules/logstash/logstash-apache.conf',
+  mode => '0744',
+  group => 'vagrant',
+  owner => 'vagrant',
+}
 
 add_repo{'logstash':
     repo_name => "logstash",
@@ -88,20 +93,4 @@ package {$build_packages:
 	require => Exec['apt_update_1'],
 }
 
-# Install all python dependencies for selenium and general software
-exec {'pip_install_modules':
-	command => "pip install -r ${pip_requirements}",
-	logoutput => on_failure,
-	path => $path_var,
-	tries => 2,
-	timeout => 1000, # This is only required for Scipy/Matplotlib - they take a while
-	require => Package[$build_packages],
-}
-
-# Python path to work while on the VM
-exec {'update_python_path':
-    command => "echo 'export PYTHONPATH=$PYTHONPATH:/vagrant/' > /home/vagrant/.bashrc",
-    path => $path_var,
-}
-
-Add_Repo['elastic'] -> Add_Repo['logstash'] -> Exec['apt_update_1'] -> Package[$build_packages] -> Exec['pip_install_modules'] -> Exec['update_python_path']
+Add_Repo['elastic'] -> Add_Repo['logstash'] -> Exec['apt_update_1'] -> Package[$build_packages] -> Exec['download_kibana'] -> File['move_kibana_folder'] -> File['copy_kibana_conf'] -> Exec['update_init']

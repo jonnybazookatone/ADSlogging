@@ -1,0 +1,21 @@
+input {
+  file {
+    path => "/tmp/access_log"
+    start_position => beginning
+  }
+}
+
+filter {
+  grok {
+    match => { "message" => "%{IPORHOST:clientip} %{USER:ident} %{USER:auth} \[%{MONTHDAY}/%{MONTH}/%{YEAR} %{TIME}\] \"%{WORD:verb} %{NOTSPACE:bibcode} HTTP/%{NUMBER:httpversion}\" %{NUMBER:response} -" }
+}
+  date {
+    match => [ "timestamp" , "dd/MMM/yyyy HH:mm:ss" ]
+  }
+}
+
+output {
+  elasticsearch { host => localhost }
+  stdout { codec => rubydebug }
+}
+
